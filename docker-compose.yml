@@ -1,28 +1,34 @@
 services:
-
-  web:
-    image: shibilbasith11/two-tier-todo:latest
-    container_name: todo-web
+  app:
+    build:
+      context: .
+    container_name: todo-app
+    restart: always
     ports:
       - "8000:8000"
-    environment:
-      POSTGRES_DB: todo_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
+    networks:
+      - app-net
     depends_on:
       - db
+    environment:
+      HOST: db
+    command:
 
   db:
-    image: postgres:16
-    container_name: todo-db
+    image: postgres:latest
+    container_name: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    networks:
+      - app-net
+    volumes:
+      - app-vol:/var/lib/postgresql
     environment:
-      POSTGRES_DB: todo_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
+      POSTGRES_DB: todo_db
 volumes:
-  postgres_data:
+  app-vol:
+networks:
+  app-net:
