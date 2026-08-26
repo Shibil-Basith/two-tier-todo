@@ -1,0 +1,64 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowTask — Todo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+  <div class="orb orb-one"></div>
+  <div class="orb orb-two"></div>
+  <main class="app-shell">
+    <header class="hero">
+      <div>
+        <span class="eyebrow">PERSONAL PRODUCTIVITY</span>
+        <h1>Flow<span>Task</span></h1>
+        <p>Capture the little things. Make room for the big ones.</p>
+      </div>
+      <div class="hero-cube" aria-hidden="true">✦</div>
+    </header>
+
+    <section class="stats glass">
+      <div><strong>{{ total }}</strong><span>Total</span></div>
+      <div><strong>{{ pending }}</strong><span>Pending</span></div>
+      <div><strong>{{ completed }}</strong><span>Done</span></div>
+    </section>
+
+    <section class="composer glass">
+      <form method="post" action="{% url 'add_todo' %}">
+        {% csrf_token %}
+        <input name="title" type="text" placeholder="What needs to be done?" maxlength="180" required>
+        <input name="description" type="text" placeholder="Add a short note (optional)">
+        <button type="submit">＋ Add task</button>
+      </form>
+    </section>
+
+    <section class="tasks">
+      {% for todo in todos %}
+      <article class="task glass {% if todo.completed %}done{% endif %}">
+        <a class="check" href="{% url 'toggle_todo' todo.pk %}" aria-label="Toggle task">
+          {% if todo.completed %}✓{% endif %}
+        </a>
+        <div class="task-copy">
+          <h2>{{ todo.title }}</h2>
+          {% if todo.description %}<p>{{ todo.description }}</p>{% endif %}
+          <small>{{ todo.created_at|date:"M d, Y · g:i A" }}</small>
+        </div>
+        <a class="delete" href="{% url 'delete_todo' todo.pk %}" aria-label="Delete task">×</a>
+      </article>
+      {% empty %}
+      <div class="empty glass">
+        <div class="empty-art">◒</div>
+        <h2>Your space is clear.</h2>
+        <p>Add your first task and start moving.</p>
+      </div>
+      {% endfor %}
+    </section>
+  </main>
+</body>
+</html>
