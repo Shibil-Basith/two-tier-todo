@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'ShibilBasith11/todoapp'
+        IMAGE_NAME = 'shibilbasith11/two-tier-todo'
         REGISTRY_CREDENTIALS = 'dockerhub-creds'
     }
 
@@ -12,7 +12,9 @@ pipeline {
             steps {
                 checkout scm
 
-                sh 'echo "Building Workspace on commit: ${GIT_COMMIT}"'
+                sh '''
+                    echo "Building commit: ${GIT_COMMIT}"
+                '''
             }
         }
 
@@ -20,60 +22,70 @@ pipeline {
             steps {
                 sh '''
                     docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
-
                     docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
                 '''
             }
         }
 
-        stage('3. Registry Authentication & Push') {
+        stage('3. Push Docker Image') {
             steps {
                 withCredentials([
                     usernamePassword(
                         credentialsId: "${REGISTRY_CREDENTIALS}",
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
                     sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        echo "${DOCKER_PASSWORD}" | docker login \
+                            -u "${DOCKER_USERNAME}" \
+                            --password-stdin
 
                         docker push ${IMAGE_NAME}:${BUILD_NUMBER}
-
                         docker push ${IMAGE_NAME}:latest
+
+                        docker logout
                     '''
                 }
             }
         }
 
-        stage('4. Continuous Deployment') {
+        stage('4. Deploy with Docker Compose') {
             steps {
                 sh '''
-                    # Gracefully stop and remove obsolete running container
-                    docker stop webpage_prod || true
-                    docker rm webpage_prod || true
+                    docker compose down
 
-                    # Launch updated container mapped to host port 8080
-                    docker run -d \
-                        --name webpage_prod \
-                        -p 8080:80 \
-                        ${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker compose pull
+
+                    docker compose up -d
+                '''
+            }
+        }
+
+        stage('5. Run Database Migrations') {
+            steps {
+                sh '''
+                    docker compose exec -T web python manage.py migrate
+                '''
+            }
+        }
+
+        stage('6. Verify Deployment') {
+            steps {
+                sh '''
+                    docker compose ps
                 '''
             }
         }
     }
 
     post {
-        always {
-            sh 'docker logout || true'
-        }
-
         success {
-            echo "Pipeline build #${BUILD_NUMBER} completed successfully!"
+            echo 'Deployment completed successfully!'
         }
 
         failure {
-            echo "Pipeline build #${BUILD_NUMBER} failed. Review console logs."
+            echo 'Deployment failed!'
         }
     }
 }
